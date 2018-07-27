@@ -1,3 +1,4 @@
+Attribute VB_Name = "Module1"
 '
 ' パワポのファイルを結合するマクロ
 '
@@ -14,9 +15,8 @@
 ' するようにした。テキトーだ。slideslist のチェックとかしてないのでちゃんと
 ' 書いてね。
 '
-Attribute VB_Name = "Module1"
 
-Sub join()
+Sub slidejoin()
   '各ファイルのデザインテンプレートが1種類ずつの場合
   Dim newPre As Presentation '新規プレゼンテーション
   Dim myPre As Presentation '既存プレゼンテーション
@@ -30,7 +30,7 @@ Sub join()
   With fd
     .AllowMultiSelect = False
     .InitialFileName = "C:" '"E:\Office\PowerPoint\VBAコード"
-    .Filters.Add "Slides list", "*.txt", 1
+    .Filters.Add "Slide list", "*.slidelist", 1
     If .Show <> -1 Then Exit Sub
   End With
 
@@ -44,14 +44,39 @@ Sub join()
   '
   '
   Set slideslist = CreateObject("Scripting.FileSystemObject").OpenTextFile(fd.SelectedItems.Item(1), 1)
+
+  ' Set screen size to 4:3
   Set newPre = Presentations.Add
+  With newPre
+     newPre.PageSetup.SlideSize = ppSlideSizeOnScreen
+  End With
 
-
+  Set regx_comment = CreateObject("vbscript.regexp")
+  With regx_comment
+     .Global = True
+     .Pattern = "^#.*$"
+  End With
+  
+  Set regx_empty = CreateObject("vbscript.regexp")
+  With regx_empty
+     .Global = True
+     .Pattern = "^ *$"
+  End With
+     
+  
   '
   ' join slides
   '
   Do While slideslist.AtEndOfStream <> True
     file = slideslist.ReadLine
+
+    ' ignore the line if it's a comment or emply
+    comment_found = regx_comment.test(file)
+    empty_found = regx_empty.test(file)
+
+    If comment_found Or empty_found = True Then
+       GoTo CONTINUE
+    End If
     
     Set myPre = Presentations.Open(file, msoTrue, msoFalse, msoFalse)
     With newPre.Slides
@@ -67,6 +92,8 @@ Sub join()
       .Range(ArrSld).Design = myPre.Slides(1).Design
     End With
     myPre.Close
+    
+CONTINUE:
 Loop
 slideslist.Close
 
